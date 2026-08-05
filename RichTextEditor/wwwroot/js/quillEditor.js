@@ -3,7 +3,7 @@
 
 // Bubble theme = Medium-style floating toolbar that appears on text selection.
 const DEFAULT_TOOLBAR = [
-    [{ header: [2, 3, false] }],
+    [{ header: [1, 2, 3, false] }],
     ['bold', 'italic', 'underline'],
     ['blockquote', 'code-block'],
     [{ list: 'ordered' }, { list: 'bullet' }],
