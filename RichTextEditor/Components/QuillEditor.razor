@@ -39,6 +39,8 @@
         if (!string.IsNullOrEmpty(InitialContent))
             await _module.InvokeVoidAsync("setContents", _editorElement, InitialContent);
 
+        await _module.InvokeVoidAsync("enableSpoilerReveal");
+
         _initialized = true;
     }
 

@@ -1,4 +1,6 @@
 @page "/editor"
+@implements IDisposable
+@inject IJSRuntime JS
 
 <PageTitle>Write a story</PageTitle>
 
@@ -6,18 +8,26 @@
     <div class="medium-canvas">
         <input class="story-title"
                placeholder="Title"
-               @bind="_title"
-               @bind:event="oninput" />
+               value="@_title"
+               @oninput="OnTitleInput" />
 
         <QuillEditor @ref="_editor"
                      Theme="bubble"
                      Placeholder="Tell your story..."
+                     InitialContent="@_initialContent"
                      OnHtmlChanged="HandleHtmlChanged" />
     </div>
 
     <div class="editor-bar">
-        <span class="word-count">@_wordCount words</span>
+        <span class="word-count">
+            @_wordCount words
+            @if (_saveStatus is not null)
+            {
+                <span class="save-status">· @_saveStatus</span>
+            }
+        </span>
         <div class="editor-actions">
+            <button class="btn-ghost" @onclick="ClearDraftAsync">Clear</button>
             <button class="btn-ghost" @onclick="PreviewAsync">Preview</button>
             <button class="btn-publish" @onclick="PublishAsync">Publish</button>
         </div>
@@ -36,16 +46,94 @@
 </div>
 
 @code {
+    private const string StorageKey = "rte-draft";
+    private const int SaveDebounceMs = 800;
+
+    private CancellationTokenSource? _saveDebounceCts;
     private QuillEditor? _editor;
     private string _title = "";
     private string _html = "";
     private int _wordCount;
     private bool _showPreview;
+    private string? _initialContent;
+    private string? _saveStatus;
+
+    // Load any saved draft before the editor is created, so InitialContent
+    // is ready when QuillEditor initializes.
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var json = await JS.InvokeAsync<string?>("localStorage.getItem", StorageKey);
+            if (!string.IsNullOrEmpty(json))
+            {
+                var draft = System.Text.Json.JsonSerializer.Deserialize<Draft>(json);
+                if (draft is not null)
+                {
+                    _title = draft.Title ?? "";
+                    _initialContent = draft.Delta;
+                    _saveStatus = "Draft restored";
+                }
+            }
+        }
+        catch { /* corrupt/unavailable storage — start fresh */ }
+    }
+
+    private void OnTitleInput(ChangeEventArgs e)
+    {
+        _title = e.Value?.ToString() ?? "";
+        QueueSave();
+    }
 
     private void HandleHtmlChanged(string html)
     {
         _html = html ?? "";
         _wordCount = CountWords(_html);
+        QueueSave();
+    }
+
+    // Restart the debounce clock on every edit; the actual save runs only
+    // after SaveDebounceMs of no further changes.
+    private void QueueSave()
+    {
+        _saveDebounceCts?.Cancel();
+        _saveDebounceCts = new CancellationTokenSource();
+        _saveStatus = "Saving…";
+        _ = DebouncedSaveAsync(_saveDebounceCts.Token);
+    }
+
+    private async Task DebouncedSaveAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(SaveDebounceMs, token);
+            await SaveDraftAsync();
+            StateHasChanged();
+        }
+        catch (TaskCanceledException) { /* superseded by a newer edit */ }
+    }
+
+    // Persist title + Delta (the canonical, re-editable form) to localStorage.
+    private async Task SaveDraftAsync()
+    {
+        var delta = _editor is null ? _initialContent : await _editor.GetContentsAsync();
+        var draft = new Draft { Title = _title, Delta = delta };
+        var json = System.Text.Json.JsonSerializer.Serialize(draft);
+        await JS.InvokeVoidAsync("localStorage.setItem", StorageKey, json);
+        _saveStatus = "Saved";
+    }
+
+    public void Dispose() => _saveDebounceCts?.Cancel();
+
+    private async Task ClearDraftAsync()
+    {
+        await JS.InvokeVoidAsync("localStorage.removeItem", StorageKey);
+        _title = "";
+        _html = "";
+        _wordCount = 0;
+        _saveStatus = "Cleared";
+        if (_editor is not null)
+            await _editor.SetContentsAsync(null);
     }
 
     private static int CountWords(string html)
@@ -77,5 +165,11 @@
         Console.WriteLine(deltaJson);
 
         _showPreview = true;
+    }
+
+    private sealed class Draft
+    {
+        public string? Title { get; set; }
+        public string? Delta { get; set; }
     }
 }
