@@ -1,0 +1,81 @@
+@page "/editor"
+
+<PageTitle>Write a story</PageTitle>
+
+<div class="medium-editor">
+    <div class="medium-canvas">
+        <input class="story-title"
+               placeholder="Title"
+               @bind="_title"
+               @bind:event="oninput" />
+
+        <QuillEditor @ref="_editor"
+                     Theme="bubble"
+                     Placeholder="Tell your story..."
+                     OnHtmlChanged="HandleHtmlChanged" />
+    </div>
+
+    <div class="editor-bar">
+        <span class="word-count">@_wordCount words</span>
+        <div class="editor-actions">
+            <button class="btn-ghost" @onclick="PreviewAsync">Preview</button>
+            <button class="btn-publish" @onclick="PublishAsync">Publish</button>
+        </div>
+    </div>
+
+    @if (_showPreview)
+    {
+        <div class="preview-overlay" @onclick="ClosePreview">
+            <article class="preview-card" @onclick:stopPropagation="true">
+                <button class="preview-close" @onclick="ClosePreview" aria-label="Close">&times;</button>
+                <h1 class="preview-title">@(string.IsNullOrWhiteSpace(_title) ? "Untitled" : _title)</h1>
+                <div class="preview-body ql-editor">@((MarkupString)_html)</div>
+            </article>
+        </div>
+    }
+</div>
+
+@code {
+    private QuillEditor? _editor;
+    private string _title = "";
+    private string _html = "";
+    private int _wordCount;
+    private bool _showPreview;
+
+    private void HandleHtmlChanged(string html)
+    {
+        _html = html ?? "";
+        _wordCount = CountWords(_html);
+    }
+
+    private static int CountWords(string html)
+    {
+        if (string.IsNullOrWhiteSpace(html)) return 0;
+        var text = System.Text.RegularExpressions.Regex.Replace(html, "<[^>]+>", " ");
+        text = System.Net.WebUtility.HtmlDecode(text);
+        return text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+    }
+
+    private async Task PreviewAsync()
+    {
+        if (_editor is not null)
+            _html = await _editor.GetHtmlAsync() ?? "";
+        _showPreview = true;
+    }
+
+    private void ClosePreview() => _showPreview = false;
+
+    private async Task PublishAsync()
+    {
+        // Grab the canonical formats you'd persist to a backend.
+        var deltaJson = _editor is null ? null : await _editor.GetContentsAsync();
+        var html = _editor is null ? "" : await _editor.GetHtmlAsync();
+        _html = html ?? "";
+
+        // TODO: POST { _title, deltaJson, html } to your API.
+        Console.WriteLine($"Publishing '{_title}' ({_wordCount} words)");
+        Console.WriteLine(deltaJson);
+
+        _showPreview = true;
+    }
+}
