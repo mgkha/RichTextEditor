@@ -39,7 +39,9 @@
             <article class="preview-card" @onclick:stopPropagation="true">
                 <button class="preview-close" @onclick="ClosePreview" aria-label="Close">&times;</button>
                 <h1 class="preview-title">@(string.IsNullOrWhiteSpace(_title) ? "Untitled" : _title)</h1>
-                <div class="preview-body ql-editor">@((MarkupString)_html)</div>
+                @* ql-editor stays so Quill's own format classes (.ql-align-*,
+                   .ql-indent-*, list counters) still resolve in the preview. *@
+                <div class="preview-body rte-content ql-editor">@((MarkupString)_html)</div>
             </article>
         </div>
     }

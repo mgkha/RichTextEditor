@@ -9,7 +9,6 @@
     <link rel="preload" id="webassembly" />
     <link rel="stylesheet" href="lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="css/app.css" />
-    <link rel="stylesheet" href="css/editor.css" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <link href="RichTextEditor.styles.css" rel="stylesheet" />
     <script type="importmap"></script>
@@ -18,6 +17,10 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.bubble.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" />
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+
+    <!-- Loaded last on purpose: the shared .rte-content rules tie with Quill's
+         own .ql-editor rules on specificity, so source order decides. -->
+    <link rel="stylesheet" href="css/editor.css" />
 
     <!-- TinyMCE itself is injected by the TinyMCE.Blazor component from the
          ScriptSrc it is given (wwwroot/lib/tinymce, populated by the TinyMCE

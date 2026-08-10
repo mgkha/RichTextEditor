@@ -12,7 +12,7 @@
                value="@_title"
                @oninput="OnTitleInput" />
 
-        <div class="tinymce-host">
+        <div class="tinymce-host rte-content">
             @* Distraction-free: Inline puts the editor on the page itself, and
                the toolbar/menubar are switched off in js/tinymceConf.js, which
                also registers the spoiler quickbar button. *@
@@ -46,7 +46,7 @@
             <article class="preview-card" @onclick:stopPropagation="true">
                 <button class="preview-close" @onclick="ClosePreview" aria-label="Close">&times;</button>
                 <h1 class="preview-title">@(string.IsNullOrWhiteSpace(_title) ? "Untitled" : _title)</h1>
-                <div class="preview-body">@((MarkupString)_html)</div>
+                <div class="preview-body rte-content">@((MarkupString)_html)</div>
             </article>
         </div>
     }
