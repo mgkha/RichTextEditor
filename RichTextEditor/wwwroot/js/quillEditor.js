@@ -231,11 +231,12 @@ export function getLength(editorElement) {
 }
 
 // Delegated click-to-reveal for spoilers shown in a reader/preview
-// (elements inside .preview-body). Safe to call many times.
-let spoilerRevealBound = false;
+// (elements inside .preview-body). Safe to call many times. The flag lives on
+// window rather than the module so tinymceEditor.js shares it — otherwise
+// visiting both editor pages binds two listeners and each click toggles twice.
 export function enableSpoilerReveal() {
-    if (spoilerRevealBound) return;
-    spoilerRevealBound = true;
+    if (window.__spoilerRevealBound) return;
+    window.__spoilerRevealBound = true;
     document.addEventListener('click', (e) => {
         const sp = e.target.closest('.spoiler-block');
         if (sp && sp.closest('.preview-body')) {

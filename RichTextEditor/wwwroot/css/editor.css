@@ -111,6 +111,85 @@
     border-bottom-color: #242424;
 }
 
+/* The TinyMCE host. Running distraction-free (inline), TinyMCE makes this
+   element itself editable rather than using an iframe — so the writing
+   surface is styled here, the same way .ql-editor is for Quill. */
+.tinymce-host {
+    font-family: Georgia, 'Times New Roman', serif;
+}
+
+/* TinyMCE puts .mce-content-body on the element it makes editable, which in
+   inline mode is a child of the component's own wrapper div — so the writing
+   surface has to be addressed by that class, not by our wrapper. */
+.tinymce-host .mce-content-body {
+    font-size: 21px;
+    line-height: 1.6;
+    color: var(--ink);
+    /* Same reason as .preview-body: long URLs and unbroken words. */
+    overflow-wrap: break-word;
+    /* Something to click when the document is empty. */
+    min-height: 60vh;
+    /* Suppress the browser focus ring; the caret is the focus indicator here,
+       exactly as on the Quill page. */
+    outline: none;
+}
+
+.tinymce-host h1 { font-size: 34px; font-weight: 700; margin: 40px 0 8px; line-height: 1.2; }
+.tinymce-host h2 { font-size: 32px; font-weight: 700; margin: 40px 0 8px; line-height: 1.25; }
+.tinymce-host h3 { font-size: 26px; font-weight: 700; margin: 32px 0 6px; line-height: 1.3; }
+.tinymce-host p { margin: 0 0 8px; }
+
+.tinymce-host blockquote {
+    border-left: 3px solid var(--ink);
+    padding-left: 20px;
+    margin-left: 0;
+    font-style: italic;
+    color: #4a4a4a;
+}
+
+.tinymce-host pre {
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 16px;
+    background: #f2f2f2;
+    color: var(--ink);
+    border-radius: 4px;
+    padding: 16px 20px;
+    /* Wrap long lines rather than scroll them. */
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+}
+
+.tinymce-host img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 24px auto;
+    border-radius: 2px;
+}
+
+/* fixed layout keeps every column inside the canvas width instead of letting
+   the table push the page wider. */
+.tinymce-host table {
+    border-collapse: collapse;
+    width: 100%;
+    max-width: 100%;
+    table-layout: fixed;
+}
+
+.tinymce-host table td,
+.tinymce-host table th {
+    border: 1px solid var(--rule);
+    padding: 8px 12px;
+    overflow-wrap: break-word;
+}
+
+/* Match Quill's placeholder. TinyMCE sets data-mce-placeholder on the
+   editable element and drops it once there is content. */
+.tinymce-host [data-mce-placeholder]::before {
+    color: #b3b3b1;
+    font-style: normal;
+}
+
 /* Spoiler block: in the editor the writer sees the passage inside a
    highlighted box so it's clearly marked as hidden. */
 .quill-host .spoiler-block {
@@ -123,6 +202,18 @@
 
 .quill-host .spoiler-block .spoiler-line {
     margin: 0;
+}
+
+.tinymce-host .spoiler-block {
+    background: #ede9fe;
+    border: 1px solid #d6ccfa;
+    border-radius: 8px;
+    padding: 12px 18px;
+    margin: 16px 0;
+}
+
+.tinymce-host .spoiler-block > :last-child {
+    margin-bottom: 0;
 }
 
 /* Spoiler block in the reader/preview: the whole box is blurred until the
@@ -139,8 +230,15 @@
     transition: filter 0.2s ease;
 }
 
-.preview-body .spoiler-block .spoiler-line {
-    margin: 0;
+/* Quill emits .spoiler-line children, TinyMCE emits plain <p> — both sit
+   flush inside the box. */
+.preview-body .spoiler-block .spoiler-line,
+.preview-body .spoiler-block p {
+    margin: 0 0 8px;
+}
+
+.preview-body .spoiler-block > :last-child {
+    margin-bottom: 0;
 }
 
 .preview-body .spoiler-block.spoiler-block--revealed {
@@ -263,6 +361,62 @@
     font-size: 21px;
     line-height: 1.6;
     color: var(--ink);
+    /* Pasted URLs and long unbroken words would otherwise run straight out
+       past the edge of the card. */
+    overflow-wrap: break-word;
+}
+
+/* The Quill preview also carries .ql-editor and picks up its rules; the
+   TinyMCE preview is plain HTML, so restate the same typography here. */
+.preview-body h1 { font-size: 34px; font-weight: 700; margin: 40px 0 8px; line-height: 1.2; }
+.preview-body h2 { font-size: 32px; font-weight: 700; margin: 40px 0 8px; line-height: 1.25; }
+.preview-body h3 { font-size: 26px; font-weight: 700; margin: 32px 0 6px; line-height: 1.3; }
+.preview-body p { margin: 0 0 8px; }
+
+.preview-body blockquote {
+    border-left: 3px solid var(--ink);
+    padding-left: 20px;
+    margin-left: 0;
+    font-style: italic;
+    color: #4a4a4a;
+}
+
+/* Long code lines wrap; the card never grows a scrollbar. */
+.preview-body pre {
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 16px;
+    background: #f2f2f2;
+    color: var(--ink);
+    border-radius: 4px;
+    padding: 16px 20px;
+    max-width: 100%;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+}
+
+/* Quill has no table format, so these rules exist for the TinyMCE preview.
+   table-layout: fixed divides the card width across the columns, so even a
+   many-column table fits instead of overflowing. */
+.preview-body table {
+    width: 100%;
+    max-width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    margin: 16px 0;
+}
+
+.preview-body table td,
+.preview-body table th {
+    border: 1px solid var(--rule);
+    padding: 8px 12px;
+    overflow-wrap: break-word;
+}
+
+.preview-body img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 24px auto;
 }
 
 @media (max-width: 640px) {

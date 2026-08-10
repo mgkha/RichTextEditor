@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# TinyMCE is delivered by the TinyMCE NuGet package, whose .targets copies it
+# here on every build. Not source.
+RichTextEditor/wwwroot/lib/tinymce/

@@ -10,6 +10,11 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.9" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.9" PrivateAssets="all" />
+    <!-- Official <Editor> wrapper component. -->
+    <PackageReference Include="TinyMCE.Blazor" Version="2.2.1" />
+    <!-- TinyMCE itself. Its .targets copies the editor into wwwroot/lib/tinymce
+         before each build, so the app self-hosts it instead of pulling a CDN. -->
+    <PackageReference Include="TinyMCE" Version="8.8.2" />
   </ItemGroup>
 
 </Project>

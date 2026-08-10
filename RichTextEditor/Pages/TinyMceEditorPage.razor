@@ -1,8 +1,9 @@
-@page "/"
+@page "/tinymce"
+@using TinyMCE.Blazor
 @implements IDisposable
 @inject IJSRuntime JS
 
-<PageTitle>Write a story</PageTitle>
+<PageTitle>Write a story (TinyMCE)</PageTitle>
 
 <div class="medium-editor">
     <div class="medium-canvas">
@@ -11,11 +12,17 @@
                value="@_title"
                @oninput="OnTitleInput" />
 
-        <QuillEditor @ref="_editor"
-                     Theme="bubble"
-                     Placeholder="Tell your story..."
-                     InitialContent="@_initialContent"
-                     OnHtmlChanged="HandleHtmlChanged" />
+        <div class="tinymce-host">
+            @* Distraction-free: Inline puts the editor on the page itself, and
+               the toolbar/menubar are switched off in js/tinymceConf.js, which
+               also registers the spoiler quickbar button. *@
+            <Editor @bind-Value="_html"
+                    @bind-Value:after="HandleHtmlChanged"
+                    Inline="true"
+                    JsConfSrc="tinymceDfreeConf"
+                    ScriptSrc="lib/tinymce/tinymce.min.js"
+                    LicenseKey="gpl" />
+        </div>
     </div>
 
     <div class="editor-bar">
@@ -39,27 +46,29 @@
             <article class="preview-card" @onclick:stopPropagation="true">
                 <button class="preview-close" @onclick="ClosePreview" aria-label="Close">&times;</button>
                 <h1 class="preview-title">@(string.IsNullOrWhiteSpace(_title) ? "Untitled" : _title)</h1>
-                <div class="preview-body ql-editor">@((MarkupString)_html)</div>
+                <div class="preview-body">@((MarkupString)_html)</div>
             </article>
         </div>
     }
 </div>
 
 @code {
-    private const string StorageKey = "rte-draft";
+    // Separate key from the Quill page so the two drafts don't overwrite each
+    // other — their stored content formats differ (HTML here, Delta there).
+    private const string StorageKey = "rte-draft-tinymce";
     private const int SaveDebounceMs = 800;
 
     private CancellationTokenSource? _saveDebounceCts;
-    private QuillEditor? _editor;
     private string _title = "";
+    // Two-way bound to the editor, so it is always the current document —
+    // no round-trip needed to read the content back out.
     private string _html = "";
     private int _wordCount;
     private bool _showPreview;
-    private string? _initialContent;
     private string? _saveStatus;
 
-    // Load any saved draft before the editor is created, so InitialContent
-    // is ready when QuillEditor initializes.
+    // Load any saved draft before the editor renders; the component pushes
+    // Value into TinyMCE once it initializes.
     protected override async Task OnInitializedAsync()
     {
         try
@@ -71,7 +80,8 @@
                 if (draft is not null)
                 {
                     _title = draft.Title ?? "";
-                    _initialContent = draft.Delta;
+                    _html = draft.Html ?? "";
+                    _wordCount = HtmlText.CountWords(_html);
                     _saveStatus = "Draft restored";
                 }
             }
@@ -85,9 +95,8 @@
         QueueSave();
     }
 
-    private void HandleHtmlChanged(string html)
+    private void HandleHtmlChanged()
     {
-        _html = html ?? "";
         _wordCount = HtmlText.CountWords(_html);
         QueueSave();
     }
@@ -113,11 +122,10 @@
         catch (TaskCanceledException) { /* superseded by a newer edit */ }
     }
 
-    // Persist title + Delta (the canonical, re-editable form) to localStorage.
+    // Persist title + HTML (TinyMCE's canonical, re-editable form) to localStorage.
     private async Task SaveDraftAsync()
     {
-        var delta = _editor is null ? _initialContent : await _editor.GetContentsAsync();
-        var draft = new Draft { Title = _title, Delta = delta };
+        var draft = new Draft { Title = _title, Html = _html };
         var json = System.Text.Json.JsonSerializer.Serialize(draft);
         await JS.InvokeVoidAsync("localStorage.setItem", StorageKey, json);
         _saveStatus = "Saved";
@@ -132,29 +140,17 @@
         _html = "";
         _wordCount = 0;
         _saveStatus = "Cleared";
-        if (_editor is not null)
-            await _editor.SetContentsAsync(null);
     }
 
-    private async Task PreviewAsync()
-    {
-        if (_editor is not null)
-            _html = await _editor.GetHtmlAsync() ?? "";
-        _showPreview = true;
-    }
+    private void PreviewAsync() => _showPreview = true;
 
     private void ClosePreview() => _showPreview = false;
 
-    private async Task PublishAsync()
+    private void PublishAsync()
     {
-        // Grab the canonical formats you'd persist to a backend.
-        var deltaJson = _editor is null ? null : await _editor.GetContentsAsync();
-        var html = _editor is null ? "" : await _editor.GetHtmlAsync();
-        _html = html ?? "";
-
-        // TODO: POST { _title, deltaJson, html } to your API.
+        // TODO: POST { _title, _html } to your API.
         Console.WriteLine($"Publishing '{_title}' ({_wordCount} words)");
-        Console.WriteLine(deltaJson);
+        Console.WriteLine(_html);
 
         _showPreview = true;
     }
@@ -162,6 +158,6 @@
     private sealed class Draft
     {
         public string? Title { get; set; }
-        public string? Delta { get; set; }
+        public string? Html { get; set; }
     }
 }
