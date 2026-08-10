@@ -1,0 +1,60 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:   # lets you trigger it manually from the Actions tab
+
+# Permissions the deploy job needs to publish to Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one Pages deploy at a time; newer pushes cancel in-progress runs.
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish
+        run: dotnet publish RichTextEditor/RichTextEditor.csproj -c Release -o release
+
+      # Pages serves this project at /<repo-name>/, so the base href must match.
+      # If your GitHub repo is NOT named "RichTextEditor", change it here.
+      - name: Rewrite base href for the project page
+        run: sed -i 's|<base href="/" />|<base href="/RichTextEditor/" />|g' release/wwwroot/index.html
+
+      # Tell Pages not to run Jekyll (which would drop the _framework folder).
+      - name: Add .nojekyll
+        run: touch release/wwwroot/.nojekyll
+
+      # SPA fallback: any unknown path returns index.html so client routing works.
+      - name: Copy index.html to 404.html
+        run: cp release/wwwroot/index.html release/wwwroot/404.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: release/wwwroot
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
