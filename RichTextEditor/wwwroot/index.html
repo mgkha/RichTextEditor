@@ -22,6 +22,9 @@
          own .ql-editor rules on specificity, so source order decides. -->
     <link rel="stylesheet" href="css/editor.css" />
 
+    <!-- Shared by both editors, so it has to load before either of them. -->
+    <script src="js/youtubeEmbed.js"></script>
+
     <!-- TinyMCE itself is injected by the TinyMCE.Blazor component from the
          ScriptSrc it is given (wwwroot/lib/tinymce, populated by the TinyMCE
          NuGet package). This file only supplies its configuration. -->

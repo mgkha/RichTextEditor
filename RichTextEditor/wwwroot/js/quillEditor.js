@@ -1,5 +1,5 @@
 // ES module bridging Blazor <-> Quill.
-// The Quill global comes from the <script> tag in index.html.
+// The Quill and youtubeEmbed globals come from <script> tags in index.html.
 
 // Bubble theme = Medium-style floating toolbar that appears on text selection.
 const DEFAULT_TOOLBAR = [
@@ -7,7 +7,7 @@ const DEFAULT_TOOLBAR = [
     ['bold', 'italic', 'underline'],
     ['blockquote', 'code-block'],
     [{ list: 'ordered' }, { list: 'bullet' }],
-    ['link', 'image', 'spoiler'],
+    ['link', 'image', 'youtube', 'spoiler'],
     ['clean']
 ];
 
@@ -62,6 +62,90 @@ function registerSpoiler() {
         '</svg>';
 
     spoilerRegistered = true;
+}
+
+// Register a block-level "youtube" embed once. The blot renders the shared
+// markup from js/youtubeEmbed.js so a video looks the same here, in the
+// TinyMCE editor and in the preview. Its Delta value is { id, start } rather
+// than a URL, which is what makes a saved draft restore without re-parsing.
+let youtubeRegistered = false;
+function registerYouTube() {
+    if (youtubeRegistered || typeof Quill === 'undefined') return;
+
+    const BlockEmbed = Quill.import('blots/block/embed');
+
+    class YouTubeBlot extends BlockEmbed {
+        static create(value) {
+            const node = super.create();
+            // Accept a URL as well as a { id, start } pair so the blot can be
+            // fed straight from a paste or a toolbar entry.
+            const video = typeof value === 'string' ? window.youtubeEmbed.parse(value) : value;
+            if (!video || !video.id) return node;
+
+            const start = video.start || 0;
+            node.setAttribute('data-youtube-id', video.id);
+            if (start > 0) node.setAttribute('data-start', String(start));
+            // Without this the caret can land in the gap beside the frame and
+            // type text into the middle of the embed. Stripped from getHtml().
+            node.setAttribute('contenteditable', 'false');
+            node.innerHTML = window.youtubeEmbed.iframeHtml(video.id, start);
+            return node;
+        }
+
+        static value(node) {
+            return {
+                id: node.getAttribute('data-youtube-id'),
+                start: parseInt(node.getAttribute('data-start'), 10) || 0
+            };
+        }
+    }
+    YouTubeBlot.blotName = 'youtube';
+    YouTubeBlot.tagName = 'DIV';
+    YouTubeBlot.className = 'video-embed';
+
+    Quill.register(YouTubeBlot, true);
+
+    // Play-button icon for the toolbar button (ql-youtube). ql-stroke and
+    // ql-fill are Quill's own classes, so it picks up hover/active colours.
+    const Icons = Quill.import('ui/icons');
+    Icons['youtube'] =
+        '<svg viewBox="0 0 18 18">' +
+        '<rect class="ql-stroke" x="1.5" y="4" width="15" height="10" rx="3"></rect>' +
+        '<polygon class="ql-fill" points="7.5,6.75 11.75,9 7.5,11.25"></polygon>' +
+        '</svg>';
+
+    youtubeRegistered = true;
+}
+
+// Ask for the video URL through Quill's own tooltip — the black pill the
+// link button already uses — instead of a separate dialog. The tooltip's
+// built-in save() only understands link/video/formula, so intercept our mode
+// and delegate everything else.
+function bindYoutubeTooltip(quill) {
+    const tooltip = quill.theme && quill.theme.tooltip;
+    if (!tooltip || !tooltip.textbox) return;
+
+    // edit(mode) takes the input's placeholder from its data-<mode> attribute.
+    tooltip.textbox.setAttribute('data-youtube', 'Paste a YouTube link');
+
+    const baseSave = tooltip.save;
+    tooltip.save = function () {
+        if (this.root.getAttribute('data-mode') !== 'youtube') return baseSave.call(this);
+
+        const video = window.youtubeEmbed.parse(this.textbox.value);
+        if (!video) {
+            // Not a YouTube link — keep the box open so it can be corrected.
+            this.textbox.select();
+            return;
+        }
+
+        const range = this.quill.getSelection(true);
+        const at = range ? range.index + range.length : this.quill.getLength();
+        this.quill.insertEmbed(at, 'youtube', video, Quill.sources.USER);
+        this.quill.setSelection(at + 1, Quill.sources.SILENT);
+        this.textbox.value = '';
+        this.hide();
+    };
 }
 
 function isSpoilerLine(line) {
@@ -137,6 +221,7 @@ function bindSpoilerEscapes(quill) {
 export function create(editorElement, dotNetRef, options) {
     options = options || {};
     registerSpoiler();
+    registerYouTube();
 
     const container = options.toolbar === false ? false : (options.toolbar || DEFAULT_TOOLBAR);
 
@@ -154,6 +239,11 @@ export function create(editorElement, dotNetRef, options) {
                         if (!range) return;
                         const active = this.quill.getFormat(range).spoiler;
                         this.quill.format('spoiler', !active, 'user');
+                    },
+                    // Swap the bubble toolbar for the URL box; the insert
+                    // itself happens in the tooltip's save (bindYoutubeTooltip).
+                    youtube: function () {
+                        this.quill.theme.tooltip.edit('youtube');
                     }
                 }
             }
@@ -161,6 +251,7 @@ export function create(editorElement, dotNetRef, options) {
     });
 
     bindSpoilerEscapes(quill);
+    bindYoutubeTooltip(quill);
 
     if (dotNetRef) {
         quill.on('text-change', (delta, oldDelta, source) => {
@@ -187,9 +278,18 @@ export function getContents(editorElement) {
 
 // HTML for storing/rendering elsewhere. Use the live DOM (root.innerHTML)
 // rather than getSemanticHTML() so custom formats like .spoiler survive.
+//
+// contenteditable is an editing concern the published document should not
+// carry, so drop it — but only by cloning when something actually has it,
+// since this runs on every keystroke.
 export function getHtml(editorElement) {
     const q = getQuill(editorElement);
-    return q ? q.root.innerHTML : null;
+    if (!q) return null;
+    if (!q.root.querySelector('[contenteditable]')) return q.root.innerHTML;
+
+    const clean = q.root.cloneNode(true);
+    clean.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+    return clean.innerHTML;
 }
 
 export function getText(editorElement) {

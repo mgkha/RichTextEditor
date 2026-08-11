@@ -95,6 +95,27 @@
     border-radius: 2px;
 }
 
+/* YouTube embed. The wrapper is a 16:9 box the iframe fills, so the video
+   scales with the column instead of carrying fixed pixel dimensions.
+   Both editors emit this markup (see js/youtubeEmbed.js). */
+.rte-content .video-embed {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    margin: 24px 0;
+    background: #000;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.rte-content .video-embed iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+}
+
 /* table-layout: fixed divides the column width across the cells, so a
    many-column table fits instead of overflowing or needing a scrollbar. */
 .rte-content table {
@@ -203,6 +224,20 @@
     min-height: 60vh;
     /* The caret is the focus indicator here, as on the Quill page. */
     outline: none;
+}
+
+/* While editing, the media plugin wraps the video's iframe in its own
+   inline-block preview span. Left alone that span becomes the iframe's
+   positioning context and the 16:9 box collapses, so make the span fill
+   the box instead, and drop the grey outline it carries — the embed already
+   reads as one object. The span itself is gone when content is read back. */
+.rte-content .video-embed .mce-preview-object {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
 }
 
 /* TinyMCE's own placeholder rule is very specific, so match its shape to
