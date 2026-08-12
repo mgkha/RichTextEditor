@@ -1,0 +1,63 @@
+/* Structural CSS for the spoiler and video blocks.
+   Loaded ahead of the host app's stylesheets, so any app rule of equal
+   specificity overrides it on source order. */
+
+
+/* --- Spoiler ------------------------------------------------------- */
+
+.spoiler-block {
+    background: #ede9fe;
+    border: 1px solid #d6ccfa;
+    border-radius: 8px;
+    padding: 12px 18px;
+    margin: 16px 0;
+}
+
+/* .spoiler-line is what the blot emits; the <p> selector catches spoiler
+   blocks authored elsewhere (another editor, or stored HTML). */
+.spoiler-block .spoiler-line,
+.spoiler-block p {
+    margin: 0 0 8px;
+}
+
+.spoiler-block > :last-child {
+    margin-bottom: 0;
+}
+
+/* Reader side. Hidden only inside a container that opted in, so the same
+   markup stays legible while it is being written. */
+.quill-spoiler-reveal .spoiler-block {
+    cursor: pointer;
+    filter: blur(6px);
+    user-select: none;
+    transition: filter 0.2s ease;
+}
+
+.quill-spoiler-reveal .spoiler-block.spoiler-block--revealed {
+    filter: none;
+    cursor: default;
+    user-select: auto;
+}
+
+
+/* --- Video --------------------------------------------------------- */
+
+/* The wrapper is a 16:9 box the iframe fills, so a video scales with the
+   column it sits in instead of carrying fixed pixel dimensions. */
+.video-embed {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    margin: 24px 0;
+    background: #000;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.video-embed iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+}

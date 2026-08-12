@@ -11,11 +11,14 @@
                value="@_title"
                @oninput="OnTitleInput" />
 
+        @* Spoiler and youtube are QuillBlazor's default modules, so there is
+           nothing to configure here to get both toolbar buttons. *@
         <QuillEditor @ref="_editor"
                      Theme="bubble"
+                     Class="rte-content"
                      Placeholder="Tell your story..."
                      InitialContent="@_initialContent"
-                     OnHtmlChanged="HandleHtmlChanged" />
+                     OnChanged="HandleChanged" />
     </div>
 
     <div class="editor-bar">
@@ -40,8 +43,10 @@
                 <button class="preview-close" @onclick="ClosePreview" aria-label="Close">&times;</button>
                 <h1 class="preview-title">@(string.IsNullOrWhiteSpace(_title) ? "Untitled" : _title)</h1>
                 @* ql-editor stays so Quill's own format classes (.ql-align-*,
-                   .ql-indent-*, list counters) still resolve in the preview. *@
-                <div class="preview-body rte-content ql-editor">@((MarkupString)_html)</div>
+                   .ql-indent-*, list counters) still resolve in the preview;
+                   quill-spoiler-reveal opts the container into the spoiler
+                   module's click-to-reveal (and its blur until then). *@
+                <div class="preview-body rte-content ql-editor quill-spoiler-reveal">@((MarkupString)_html)</div>
             </article>
         </div>
     }
@@ -55,6 +60,9 @@
     private QuillEditor? _editor;
     private string _title = "";
     private string _html = "";
+    // The Delta the editor last reported. Kept alongside the HTML so saving a
+    // draft needs no round-trip back into JS.
+    private string? _delta;
     private int _wordCount;
     private bool _showPreview;
     private string? _initialContent;
@@ -81,17 +89,29 @@
         catch { /* corrupt/unavailable storage — start fresh */ }
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) await JS.EnableSpoilerRevealAsync();
+    }
+
     private void OnTitleInput(ChangeEventArgs e)
     {
         _title = e.Value?.ToString() ?? "";
         QueueSave();
     }
 
-    private void HandleHtmlChanged(string html)
+    // One notification per edit carries both forms of the document, so nothing
+    // here has to ask the editor for anything. The first one arrives as soon as
+    // the editor exists, which is what gives a restored draft its word count.
+    private void HandleChanged(QuillChange change)
     {
-        _html = html ?? "";
+        _html = change.Html;
+        _delta = change.Delta;
         _wordCount = HtmlText.CountWords(_html);
-        QueueSave();
+
+        // Only a person typing is worth persisting: saving in response to our
+        // own restore would just write the draft back over itself.
+        if (change.FromUser) QueueSave();
     }
 
     // Restart the debounce clock on every edit; the actual save runs only
@@ -118,8 +138,7 @@
     // Persist title + Delta (the canonical, re-editable form) to localStorage.
     private async Task SaveDraftAsync()
     {
-        var delta = _editor is null ? _initialContent : await _editor.GetContentsAsync();
-        var draft = new Draft { Title = _title, Delta = delta };
+        var draft = new Draft { Title = _title, Delta = _delta ?? _initialContent };
         var json = System.Text.Json.JsonSerializer.Serialize(draft);
         await JS.InvokeVoidAsync("localStorage.setItem", StorageKey, json);
         _saveStatus = "Saved";
@@ -132,12 +151,15 @@
         await JS.InvokeVoidAsync("localStorage.removeItem", StorageKey);
         _title = "";
         _html = "";
+        _delta = null;
         _wordCount = 0;
         _saveStatus = "Cleared";
         if (_editor is not null)
             await _editor.SetContentsAsync(null);
     }
 
+    // Read straight from the editor rather than trusting the debounced copy,
+    // so a preview or publish that lands mid-keystroke is still current.
     private async Task PreviewAsync()
     {
         if (_editor is not null)
@@ -149,14 +171,15 @@
 
     private async Task PublishAsync()
     {
-        // Grab the canonical formats you'd persist to a backend.
-        var deltaJson = _editor is null ? null : await _editor.GetContentsAsync();
-        var html = _editor is null ? "" : await _editor.GetHtmlAsync();
-        _html = html ?? "";
+        if (_editor is not null)
+        {
+            _delta = await _editor.GetContentsAsync();
+            _html = await _editor.GetHtmlAsync() ?? "";
+        }
 
-        // TODO: POST { _title, deltaJson, html } to your API.
+        // TODO: POST { _title, _delta, _html } to your API.
         Console.WriteLine($"Publishing '{_title}' ({_wordCount} words)");
-        Console.WriteLine(deltaJson);
+        Console.WriteLine(_delta);
 
         _showPreview = true;
     }

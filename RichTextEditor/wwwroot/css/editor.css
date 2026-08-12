@@ -1,14 +1,18 @@
-/* Medium-like writing surface, shared by the Quill and TinyMCE pages.
+/* Medium-like writing surface.
    =====================================================================
-   Layout                — page chrome around the editor
-   Shared content        — .rte-content: how a document looks, defined ONCE
-   Editor-only deltas    — caret, placeholder, per-library chrome
-   Preview-only deltas   — spoiler blur
-   Chrome                — action bar, buttons, preview overlay
+   Layout           — page chrome around the editor
+   Shared content   — .rte-content: how a document looks, defined ONCE
+   Editor-only      — caret, placeholder, Quill's own chrome
+   Chrome           — action bar, buttons, preview overlay
 
-   NOTE: this file must load AFTER quill.*.css in index.html. Several
-   shared rules tie with Quill's own on specificity (.rte-content h2 vs
-   .ql-editor h2), so source order is what makes them win. */
+   The spoiler box and the video frame are not here: QuillBlazor ships
+   their structural CSS.
+
+   NOTE: several rules here tie with Quill's own on specificity
+   (.rte-content h2 vs .ql-editor h2), so source order is what makes them
+   win. QuillBlazor puts Quill's stylesheets at the top of <head>, ahead
+   of everything index.html declares, which is what keeps this file
+   winning without any ordering rules of its own. */
 
 .medium-editor {
     --ink: #242424;
@@ -44,9 +48,9 @@
 /* ===================================================================
    Shared content surface
    -------------------------------------------------------------------
-   Applied to both editor hosts and to the preview body, so a paragraph
-   renders identically wherever it appears. Add new element styling
-   here and it reaches all three surfaces at once.
+   Applied to the editor host and to the preview body, so a paragraph
+   renders identically in both. Add new element styling here and it
+   reaches the editor and the preview at once.
    =================================================================== */
 
 .rte-content {
@@ -71,8 +75,8 @@
     color: #4a4a4a;
 }
 
-/* Quill emits .ql-code-block-container divs, TinyMCE emits <pre>. Long
-   lines wrap rather than scroll. */
+/* Quill emits .ql-code-block-container divs; <pre> covers code blocks in
+   stored HTML from anywhere else. Long lines wrap rather than scroll. */
 .rte-content pre,
 .rte-content .ql-code-block-container {
     font-family: 'SF Mono', Menlo, Consolas, monospace;
@@ -95,27 +99,6 @@
     border-radius: 2px;
 }
 
-/* YouTube embed. The wrapper is a 16:9 box the iframe fills, so the video
-   scales with the column instead of carrying fixed pixel dimensions.
-   Both editors emit this markup (see js/youtubeEmbed.js). */
-.rte-content .video-embed {
-    position: relative;
-    aspect-ratio: 16 / 9;
-    margin: 24px 0;
-    background: #000;
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.rte-content .video-embed iframe {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: 0;
-    display: block;
-}
-
 /* table-layout: fixed divides the column width across the cells, so a
    many-column table fits instead of overflowing or needing a scrollbar. */
 .rte-content table {
@@ -133,32 +116,10 @@
     overflow-wrap: break-word;
 }
 
-/* Spoiler box. The box itself is shared; only the preview hides its
-   contents (see the preview delta below). */
-.rte-content .spoiler-block {
-    background: #ede9fe;
-    border: 1px solid #d6ccfa;
-    border-radius: 8px;
-    padding: 12px 18px;
-    margin: 16px 0;
-}
-
-/* Quill emits .spoiler-line children, TinyMCE emits plain <p>. */
-.rte-content .spoiler-block .spoiler-line,
-.rte-content .spoiler-block p {
-    margin: 0 0 8px;
-}
-
-.rte-content .spoiler-block > :last-child {
-    margin-bottom: 0;
-}
-
 
 /* ===================================================================
    Editor-only deltas
    =================================================================== */
-
-/* --- Quill ------------------------------------------------------- */
 
 /* Quill turns the host into .ql-container and styles it as a bordered
    13px sans-serif box; strip that back to a bare page. */
@@ -166,8 +127,18 @@
     border: none;
 }
 
-.rte-content .ql-editor {
+/* Quill's .ql-editor padding, stripped on both surfaces. Two selectors,
+   because in the editor .ql-editor is a child of the .rte-content host,
+   while the preview carries both classes on the same element. */
+.rte-content .ql-editor,
+.rte-content.ql-editor {
     padding: 0;
+}
+
+/* Type, however, only for the child case: on the preview element `inherit`
+   would reach past .rte-content to the page and land on the browser
+   default, which is how the preview ends up at 16px. */
+.rte-content .ql-editor {
     font-size: inherit;
     line-height: inherit;
 }
@@ -203,6 +174,8 @@
     color: var(--ink);
     margin: 16px 0;
     padding: 16px 20px;
+    /* Quill's themes set 3px here; the shared rule above says 4px. */
+    border-radius: 4px;
 }
 
 /* Bubble tooltip: darken to Medium's black pill */
@@ -215,59 +188,13 @@
     border-bottom-color: #242424;
 }
 
-/* --- TinyMCE ----------------------------------------------------- */
-
-/* TinyMCE puts .mce-content-body on the element it makes editable, which
-   in inline mode is a child of the component's own wrapper div. */
-.rte-content .mce-content-body {
-    /* Something to click when the document is empty. */
-    min-height: 60vh;
-    /* The caret is the focus indicator here, as on the Quill page. */
-    outline: none;
-}
-
-/* While editing, the media plugin wraps the video's iframe in its own
-   inline-block preview span. Left alone that span becomes the iframe's
-   positioning context and the 16:9 box collapses, so make the span fill
-   the box instead, and drop the grey outline it carries — the embed already
-   reads as one object. The span itself is gone when content is read back. */
-.rte-content .video-embed .mce-preview-object {
-    position: absolute;
-    inset: 0;
-    display: block;
-    width: 100%;
-    height: 100%;
-    border: 0;
-}
-
-/* TinyMCE's own placeholder rule is very specific, so match its shape to
-   win and give the same grey as Quill's. */
-.rte-content .mce-content-body[data-mce-placeholder]:not(.mce-visualblocks)::before {
-    color: #b3b3b1;
-    filter: none;
-    font-style: normal;
-}
-
 
 /* ===================================================================
    Preview-only delta
    -------------------------------------------------------------------
-   Everything else about the preview comes from .rte-content above.
+   Everything else about the preview comes from .rte-content above, and
+   the spoiler blur from the module's .quill-spoiler-reveal rules.
    =================================================================== */
-
-/* The whole box is blurred until the reader clicks inside it. */
-.preview-body .spoiler-block {
-    cursor: pointer;
-    filter: blur(6px);
-    user-select: none;
-    transition: filter 0.2s ease;
-}
-
-.preview-body .spoiler-block.spoiler-block--revealed {
-    filter: none;
-    cursor: default;
-    user-select: auto;
-}
 
 /* The Quill preview carries .ql-editor so Quill's format classes
    (.ql-align-*, .ql-indent-*, list counters) still resolve; undo the

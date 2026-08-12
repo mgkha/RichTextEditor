@@ -13,22 +13,11 @@
     <link href="RichTextEditor.styles.css" rel="stylesheet" />
     <script type="importmap"></script>
 
-    <!-- Quill 2.0 (rich text editor) -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.bubble.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" />
-    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
-
-    <!-- Loaded last on purpose: the shared .rte-content rules tie with Quill's
-         own .ql-editor rules on specificity, so source order decides. -->
+    <!-- Nothing here loads the editor: the QuillBlazor package fetches Quill,
+         its theme stylesheets and its own CSS when <QuillEditor> is first
+         rendered, and puts them at the top of <head> so this file's rules
+         still win. -->
     <link rel="stylesheet" href="css/editor.css" />
-
-    <!-- Shared by both editors, so it has to load before either of them. -->
-    <script src="js/youtubeEmbed.js"></script>
-
-    <!-- TinyMCE itself is injected by the TinyMCE.Blazor component from the
-         ScriptSrc it is given (wwwroot/lib/tinymce, populated by the TinyMCE
-         NuGet package). This file only supplies its configuration. -->
-    <script src="js/tinymceConf.js"></script>
 </head>
 
 <body>

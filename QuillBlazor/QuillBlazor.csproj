@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>QuillBlazor</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Kaung Htet Aung</Authors>
+    <Description>
+      Quill 2 rich text editor for Blazor. Self-contained: the component loads Quill,
+      its theme stylesheet and its own modules on demand, so a consuming app never
+      touches index.html. Ships pluggable spoiler and YouTube-embed modules.
+    </Description>
+    <PackageTags>blazor;quill;richtext;wysiwyg;editor</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
